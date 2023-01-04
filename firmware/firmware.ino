@@ -17,8 +17,7 @@
  * Powerconsumption is about 50mA on average (including WiFi communication and motor running every minute)
  * 
  * To connect to WiFi just add your WiFi Credentials below.
- * 
- * I am sorry if there are some comments missing to explain the code.
+ *
  * 
  * Have fun with this version of the Hollow Clock 4!
  * 
