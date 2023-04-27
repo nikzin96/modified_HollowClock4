@@ -175,11 +175,14 @@ void initWifi(){
   WiFi.mode(WIFI_STA);
   WiFi.begin(mySSID, myPASSWORD); //  Add your WiFi SSID and password here
 
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED && counter < 120) {  //  Wait until connected, but maximum 1 minute (60.000ms / 500ms)
       delay(500);
+      counter += 1;
   }
 
-  
+  if(counter == 120){ //  if connection failed, because one minute has passed, set current +1 and continue 
+    currMinute += 1;
+  }  
 
 }
 
