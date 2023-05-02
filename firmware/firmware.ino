@@ -169,6 +169,7 @@ void getTimeDiff(){
 
 
 void initWifi(){
+  int counter=0;
   configTime(MY_TZ, MY_NTP_SERVER);
   WiFi.setAutoReconnect(true);
   WiFi.persistent(true);
