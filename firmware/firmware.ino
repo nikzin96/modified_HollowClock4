@@ -23,7 +23,7 @@
  * 
  */
 
-#include <ESP8266WiFi.h>
+#include <WiFiManager.h>  //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <NTPClient.h>    //  https://github.com/arduino-libraries/NTPClient
 #include <WiFiClient.h>
 #include <WiFiUdp.h>
@@ -39,8 +39,10 @@
 
 // Motor and clock parameters
 // 4096 * 90 / 12 = 30720
+//TODO: Make Configurable
 #define STEPS_PER_ROTATION 30745 //  adjusted steps for a full turn of minute rotor (this was different for me from the original (30720)
 
+//TODO: Make Configurable
 #define MY_TZ "CET-1CEST,M3.5.0/02,M10.5.0/03"    // just add the right string for your time zone: https://werner.rothschopf.net/202011_arduino_esp8266_ntp_en.htm
 #define MY_NTP_SERVER "pool.ntp.org"
 
@@ -53,6 +55,7 @@ tm tm;                              // the structure tm holds time information i
 // ports used to control the stepper motor
 // if your motor rotate to the opposite direction, 
 // change the order as {D5, D6, D7, D8};
+//TODO: Flip rotation Option
 int port[4] = {D8, D7, D6, D5};
 
 // sequence of stepper motor control
@@ -168,22 +171,16 @@ void getTimeDiff(){
 //Ticker update;
 
 
-void initWifi(){
-  int counter=0;
+void initWifi() {
+  
+  WiFiManager wifiManager;
+  
+  wifiManager.setDebugOutput(false);
+  wifiManager.setConnectTimeout(300);
+
+  wifiManager.autoConnect("HollowClock4");
+
   configTime(MY_TZ, MY_NTP_SERVER);
-  WiFi.setAutoReconnect(true);
-  WiFi.persistent(true);
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(mySSID, myPASSWORD); //  Add your WiFi SSID and password here
-
-  while (WiFi.status() != WL_CONNECTED && counter < 120) {  //  Wait until connected, but maximum 1 minute (60.000ms / 500ms)
-      delay(500);
-      counter += 1;
-  }
-
-  if(counter == 120){ //  if connection failed, because one minute has passed, set current +1 and continue 
-    currMinute += 1;
-  }  
 
 }
 
@@ -219,39 +216,10 @@ void setup() {
 
 
 void loop() {
-  if(WiFi.status() != WL_CONNECTED){  //  If there is no WiFi connection the clock will run as the original version
-    static long prev_min = 0, prev_pos = 0;
-    long min;
-    static long pos;
-    
-    min = millis() / MILLIS_PER_MIN;
-    if(prev_min == min) {
-      return;
-    }
-    prev_min = min;
-    pos = (STEPS_PER_ROTATION * min) / 60;
-    rotate(-20); // for approach run
-    rotate(20); // approach run without heavy load
-    if(pos - prev_pos > 0 && skip == false) {
-      rotate(pos - prev_pos);
-      
-      currMinute += 1;
-      if(currMinute == 60){
-        currMinute = 0;
-        currHour += 1;
-        if(currHour == 24){
-          currHour = 0;
-        }
-      }
 
-    }
-    prev_pos = pos;
-    skip = false;
-  }
-
-  if(WiFi.status() == WL_CONNECTED){  //  if there is a WiFi connection the clock will check if there is a time difference
-    updateTime();
-    skip = true;
+  // the clock will check if there is a time difference
+  updateTime();
+  skip = true;
 
     if(currMinute != 59 && currHour != Hour){ //  some conversion of the time to fit the 12h clock
       int newCurrHour;
@@ -296,5 +264,5 @@ void loop() {
     }
 
     delay(10000);
-  }
+  
 }
