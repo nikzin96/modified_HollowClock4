@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Holow Clock 4</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <!DOCTYPE html>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <style>
+        .button {
+            height: 70px;
+            width: 100px;
+        }
+        .row {
+            text-align:center
+        }
+    </style>
+    <body>
+        <div class="row">
+            <div class="cell">
+                <h2>Wifi Settings</h2>
+            </div>
+            <div>
+                <form action="/api/wifi" method="post">
+                    <label for="ssid">SSID:</label>
+                    <input type="text" id="ssid" name="ssid"><br><br>
+                    <label for="password">Password:</label>
+                    <input type="text" id="password" name="password"><br><br>
+                    <input type="submit" value="Save">
+                </form>
+            </div>    
+        </div>
+    </body>
+</html>

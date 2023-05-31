@@ -31,12 +31,14 @@
 #include <sys/time.h>
 #include <EEPROM.h>
 #include <ESP8266WebServer.h>
+#include <DNSServer.h>
 
 
+DNSServer dnsServer;
+ESP8266WebServer server(80);
 
 
-
- //save int in EEPROM
+//save int in EEPROM
 void saveInt(int address, int value) {
   byte low = (value & 0xFF);
   byte high = ((value >> 8) & 0xFF);
@@ -87,16 +89,39 @@ bool readBool(int address) {
   return EEPROM.read(address);
 }
 
+// check if EEPROM is from Hollow Clock 4
+bool isHC4() {
+  char charBuf[4];
+  for (int i = 0; i < 4; i++) {
+    charBuf[i] = EEPROM.read(i);
+  }
+  String string = charBuf;
+  return string == "HC4";
+}
+
+void readEEPROM() {
+  Serial.println("EEPROM:");
+  for (int i = 0; i < 512; i++) {
+    Serial.print(EEPROM.read(i));
+    Serial.print(" ");
+  }
+  Serial.println();
+}
+
+String ssid;
+String password;
+bool flipRotation;
 int STEPS_PER_ROTATION;
-const char * MY_TZ;
-const char * MY_NTP_SERVER;
+String MY_TZ;
+String MY_NTP_SERVER;
 int delaytime;
 int port[4];
+bool setupmode = false;
 
 void EEPROM_init() {
-   if (readString(0) == "HC4") { //  check if EPROM is From Hollow Clock 4
+  if (isHC4()) { //  check if EPROM is From Hollow Clock 4
     Serial.println("EEPROM is from Hollow Clock 4");
-
+    readEEPROM();
   }
   else {
     Serial.println("EEPROM is not from Hollow Clock 4");
@@ -104,29 +129,45 @@ void EEPROM_init() {
     // clear EEPROM
     for (int i = 0; i < 512; i++) {
       EEPROM.write(i, 0);
+      yield();
     }
 
     saveString(0, "HC4");
 
+    saveInt(5, 0); //  last saved hour
+    saveInt(7, 0); //  last saved minute
+
     // save default values
-    saveBool(100, false); //  Flip rotation
-    saveInt(101, 30720); //  STEPS_PER_ROTATION  
-    saveInt(103, 2); //  delaytime
-    saveString(150, "CET-1CEST,M3.5.0/02,M10.5.0/03"); //  MY_TZ  https://werner.rothschopf.net/202011_arduino_esp8266_ntp_en.htm
-    saveString(200, "pool.ntp.org"); //  MY_NTP_SERVER
+    saveString(10, "SSID"); //  WiFi SSID max 32 chars
+    saveString(50, "PASSWORD"); //  WiFi PASSWORD max 63 chars
+
+    saveBool(150, false); //  Flip rotation
+    saveInt(151, 30720); //  STEPS_PER_ROTATION  
+    saveInt(153, 2); //  delaytime 
+    saveString(200, "CET-1CEST,M3.5.0/02,M10.5.0/03"); //  MY_TZ  https://werner.rothschopf.net/202011_arduino_esp8266_ntp_en.htm max 49 chars
+    saveString(250, "pool.ntp.org"); //  MY_NTP_SERVER  max 49 chars
   }
 
   Serial.println(readString(0));
+  Serial.println(readString(10));
+  Serial.println(readString(50));
+  Serial.println(readBool(150));
+  Serial.println(readInt(151));
+  Serial.println(readInt(153));
+  Serial.println(readString(200));
+  Serial.println(readString(250));
 
   // read values from EEPROM
-  bool flipRotation = readBool(100);
-  STEPS_PER_ROTATION = readInt(101);
-  delaytime = readInt(103);
-  MY_TZ = readString(150).c_str();
-  MY_NTP_SERVER = readString(200).c_str();
+  ssid = readString(10);
+  password = readString(50);
+  flipRotation = readBool(150);
+  STEPS_PER_ROTATION = readInt(151);
+  delaytime = readInt(153);
+  MY_TZ = readString(200);
+  MY_NTP_SERVER = readString(250);
 
 
-  if (flipRotation == true){
+  if (flipRotation == true) {
     port[0] = D5;
     port[1] = D6;
     port[2] = D7;
@@ -190,6 +231,7 @@ void rotate(int step) { // original function from shiura
       digitalWrite(port[i], seq[phase][i]);
     }
     delay(dt);
+    server.handleClient();
     if (dt > delaytime) dt--;
   }
   // power cut
@@ -211,6 +253,7 @@ void rotateFast(int step) { // this is just to rotate to the current time faster
       digitalWrite(port[i], seq[phase][i]);
     }
     delay(dt);
+    server.handleClient();
     if (dt > delaytime) dt--;
   }
   // power cut
@@ -260,103 +303,390 @@ void getTimeDiff() {
 }
 
 //Ticker update;
-
+bool testWifi() {
+  for (int i = 0; i < 40; i++) {
+    if (WiFi.status() == WL_CONNECTED) {
+      return true;
+    }
+    delay(1000);
+  }
+  return false;
+}
 
 void initWifi() {
 
-  WiFi.begin("SSID", "PASSWORD"); //  add your WiFi credentials here
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  Serial.println("");
+
+  if (testWifi()) {
+    Serial.println("WiFi connected");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
+    setupmode = false;
+  }
+  else {
+    Serial.println("WiFi connect failed");
+    WiFi.disconnect();
+    setupmode = true;
 
 
-  configTime(MY_TZ, MY_NTP_SERVER);
+    IPAddress apIP(10, 10, 10, 10);
+    WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+
+    dnsServer.start(53, "*", WiFi.softAPIP());
+
+    WiFi.softAP("HollowClock4");
+    Serial.println("AP IP address: ");
+    Serial.println(WiFi.softAPIP());
+    Serial.println("Please connect to AP and set WiFi credentials");
+  }
+
+
+  configTime(MY_TZ.c_str(), MY_NTP_SERVER.c_str());
 
 }
 
-
-void setup() {
-  Serial.begin(9600);
-
-  EEPROM.begin(512);
-
-  EEPROM_init();
-
-  //at startup the clock expects it´s set to 12 o`clock
-  currHour = 0;
-  currMinute = 0;
-
-  //initWifi();
-
-
-  pinMode(port[0], OUTPUT);
-  pinMode(port[1], OUTPUT);
-  pinMode(port[2], OUTPUT);
-  pinMode(port[3], OUTPUT);
-
-
-  getTimeDiff();  //  when first starting up the clock expects that it is set to 12 o`clock and will set itself to the current time from there
-
+void movetoStart() {
   rotate(-20); // for approach run
   rotate(20); // approach run without heavy load
   rotateFast((STEPS_PER_ROTATION * hourDiff));
   rotateFast(((minuteDiff * STEPS_PER_ROTATION) / 60));
-
   hourDiff = 0;
   minuteDiff = 0;
+}
 
 
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  EEPROM.begin(512);
+
+  Serial.println("Hollow Clock 4");
+  Serial.println(isHC4());
+
+  EEPROM_init();
+  yield();
+
+  initWifi();
+
+  restServerRouting();
+  server.begin();
+
+  if (setupmode == false) {
+
+    //at startup the clock expects it´s set to 12 o`clock
+
+    int lasthour = readInt(5); //  this is the last saved hour
+    int lastminute = readInt(7); //  this is the last saved minute
+    if (lasthour != 0) {
+      saveInt(5, 0);
+    }
+    if (lastminute != 0) {
+      saveInt(7, 0);
+    }
+
+    currHour = lasthour;
+    currMinute = lastminute;
+
+
+
+    pinMode(port[0], OUTPUT);
+    pinMode(port[1], OUTPUT);
+    pinMode(port[2], OUTPUT);
+    pinMode(port[3], OUTPUT);
+
+
+    getTimeDiff();  //  when first starting up the clock expects that it is set to 12 o`clock and will set itself to the current time from there
+
+    rotate(-20); // for approach run
+    rotate(20); // approach run without heavy load
+    rotateFast((STEPS_PER_ROTATION * hourDiff));
+    rotateFast(((minuteDiff * STEPS_PER_ROTATION) / 60));
+
+    hourDiff = 0;
+    minuteDiff = 0;
+
+
+
+  }
+
+}
+
+void rootPage() {
+  String data = R"(
+    <!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Holow Clock 4</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <style>
+        .button {
+            height: 60px;
+            width: 150px;
+        }
+        .row {
+            text-align:center
+        }
+    </style>
+    <body>
+        <div class="row">
+            <div class="cell">
+                <h2>Settings</h2>
+            </div>
+            <button class="button"; onclick="window.location.href = '/wifi';">Wifi Settings</button><br><br>
+            <button class="button"; onclick="window.location.href = '/settings';">Settings</button><br><br>
+            <button class="button"; onclick="window.location.href = '/movetostart';">Move Clock To 12 a Clock (To start)</button>
+
+</html>
+  )";
+
+
+  server.send(200, "text/html", data);
+}
+
+void wifi() {
+  String data = R"(
+  <!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Holow Clock 4</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <!DOCTYPE html>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <style>
+        .button {
+            height: 70px;
+            width: 100px;
+        }
+        .row {
+            text-align:center
+        }
+    </style>
+    <body>
+        <div class="row">
+            <div class="cell">
+                <h2> Wifi Settings</h2>
+            </div>
+            <div>
+                <form action="/api/wifi" method="post">
+                    <label for="ssid">SSID:</label>
+                    <input type="text" id="ssid" name="ssid"><br><br>
+                    <label for="password">Password:</label>
+                    <input type="text" id="password" name="password"><br><br>
+                    <input type="submit" value="Save">
+                </form>
+            </div>    
+        </div>
+    </body>
+</html>
+)";
+
+
+  server.send(200, "text/html", data);
+}
+
+void settings() {
+  bool flip = readBool(150);
+  STEPS_PER_ROTATION = readInt(151);
+  delaytime = readInt(153);
+  String strMY_TZ = readString(200);
+  String strMY_NTP_SERVER = readString(250);
+  String strflipRotation = "";
+  if (flip == true) {
+    strflipRotation = "checked";
+  }
+
+  String data = R"(
+  <!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Holow Clock 4</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <!DOCTYPE html>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <style>
+        .button {
+            height: 70px;
+            width: 100px;
+        }
+        .row {
+            text-align:center
+        }
+    </style>
+    <body>
+        <div class="row">
+            <div class="cell">
+                <h2>Settings</h2>
+            </div>
+            <div>
+                <form action="/api/settings" method="post">
+                    <label for="flipRotation"> Flip Rotation</label>
+                    <input type="checkbox" id="flipRotation" name="flipRotation" value="1" )" + strflipRotation + R"( ><br>
+                    if your motor rotate to the opposite direction<br>
+                    <br>
+                    <label for="STEPS_PER_ROTATION">STEPS_PER_ROTATION:</label>
+                    <input type="text" id="STEPS_PER_ROTATION" name="STEPS_PER_ROTATION" value=")" + STEPS_PER_ROTATION + R"("><br>
+                    adjusted steps for a full turn of minute rotor<br>
+                    <br>
+                    <label for="delaytime">delaytime:</label>
+                    <input type="text" id="delaytime" name="delaytime" value=")" + delaytime + R"(" ><br>
+                    wait for a single step of stepper<br>
+                    <br>
+                    <label for="MY_TZ">time zone:</label>
+                    <input type="text" id="MY_TZ" name="MY_TZ" value=")" + strMY_TZ + R"("><br>
+                    just set the right string for your time zone: <br>
+                    https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv<br>
+                    <br>
+                    <label for="MY_NTP_SERVER">NTP_SERVER:</label>
+                    <input type="text" id="MY_NTP_SERVER" name="MY_NTP_SERVER" value=")" + strMY_NTP_SERVER + R"("><br><br>
+
+                    <div style="color: red" >WARNING: wait until the Clock is not Moving</div>  <br>
+                    
+                    <input type="submit" value="Save">
+                </form>
+            </div>    
+        </div>
+    </body>
+</html>
+  )";
+  server.send(200, "text/html", data);
+}
+
+void apiWifi() {
+  String new_ssid = server.arg("ssid");
+  String new_password = server.arg("password");
+
+  saveString(10, new_ssid);
+  saveString(50, new_password);
+
+
+  server.sendHeader("Location", String("/"), true);
+  server.send(302, "text/plain", "");
+
+  saveInt(5, currHour);
+  saveInt(7, currMinute);
+
+  ESP.restart();
+}
+
+void apisettings() {
+  bool flipRotation = (server.arg("flipRotation") == "1");
+  int STEPS_PER_ROTATION = server.arg("STEPS_PER_ROTATION").toInt();;
+  int delaytime = server.arg("delaytime").toInt();;
+  String MY_TZ = server.arg("MY_TZ");
+  String MY_NTP_SERVER = server.arg("MY_NTP_SERVER");
+
+
+  saveBool(150, flipRotation);
+  saveInt(151, STEPS_PER_ROTATION);
+  saveInt(153, delaytime);
+  saveString(200, MY_TZ);
+  saveString(250, MY_NTP_SERVER);
+
+  server.sendHeader("Location", String("/"), true);
+  server.send(302, "text/plain", "");
+
+  saveInt(5, currHour);
+  saveInt(7, currMinute);
+
+  ESP.restart();
 }
 
 
 
+void movetoStartWeb() {
+  server.sendHeader("Location", String("/"), true);
+  server.send(302, "text/plain", "");
+
+  movetoStart();
+}
+
+void restServerRouting() {
+  server.on(F("/"), HTTP_GET, rootPage);
+  server.on(F("/wifi"), HTTP_GET, wifi);
+  server.on(F("/settings"), HTTP_GET, settings);
+  server.on(F("/movetostart"), HTTP_GET, movetoStartWeb);
+
+  server.on(F("/api/settings"), HTTP_POST, apisettings);
+  server.on(F("/api/wifi"), HTTP_POST, apiWifi);
+  server.onNotFound(wifi);
+}
+
 void loop() {
-
-  // the clock will check if there is a time difference
-  updateTime();
-  skip = true;
-
-  if (currMinute != 59 && currHour != Hour) { //  some conversion of the time to fit the 12h clock
-    int newCurrHour;
-    if (Hour > 12) {
-      Hour = Hour - 12;
-    }
-    newCurrHour = currHour;
-    if (currHour > 12) {
-      newCurrHour = currHour - 12;
-    }
-    if (Hour > newCurrHour) {
-      hourDiff == Hour - newCurrHour;
-    }
-    else if (newCurrHour > Hour) {
-      hourDiff = 12 - (newCurrHour - Hour);
-    }
+  server.handleClient();
+  if (setupmode == true) {
+    dnsServer.processNextRequest();
+    return;
   }
 
-  if (currMinute != Minute) {
-    if (Minute < currMinute) {
-      minuteDiff = 60 - currMinute + Minute;
-    }
-    else {
-      minuteDiff = Minute - currMinute;
-      // currMinute = Minute;
+
+  if (setupmode == false) {
+    // the clock will check if there is a time difference
+    updateTime();
+    skip = true;
+
+    if (currMinute != 59 && currHour != Hour) { //  some conversion of the time to fit the 12h clock
+      int newCurrHour;
+      if (Hour > 12) {
+        Hour = Hour - 12;
+      }
+      newCurrHour = currHour;
+      if (currHour > 12) {
+        newCurrHour = currHour - 12;
+      }
+      if (Hour > newCurrHour) {
+        hourDiff == Hour - newCurrHour;
+      }
+      else if (newCurrHour > Hour) {
+        hourDiff = 12 - (newCurrHour - Hour);
+      }
     }
 
-    currMinute = Minute;
-    currHour = Hour;
+    if (currMinute != Minute) {
+      if (Minute < currMinute) {
+        minuteDiff = 60 - currMinute + Minute;
+      }
+      else {
+        minuteDiff = Minute - currMinute;
+        // currMinute = Minute;
+      }
+
+      currMinute = Minute;
+      currHour = Hour;
 
 
-    if (minuteDiff >= 0) {  //  this is used to make sure the clock does not go backwards, since its not really working backwards
-      rotate(-20); // for approach run
-      rotate(20); // approach run without heavy load
-      rotate(((minuteDiff * STEPS_PER_ROTATION) / 60));
+      if (minuteDiff >= 0) {  //  this is used to make sure the clock does not go backwards, since its not really working backwards
+        rotate(-20); // for approach run
+        rotate(20); // approach run without heavy load
+        rotate(((minuteDiff * STEPS_PER_ROTATION) / 60));
+      }
+      if (hourDiff >= 0) {
+        rotate((STEPS_PER_ROTATION * hourDiff));
+      }
+
+      minuteDiff = 0;
+      hourDiff = 0;
+
     }
-    if (hourDiff >= 0) {
-      rotate((STEPS_PER_ROTATION * hourDiff));
+
+
+    for (int i = 0; i < 10; i++) {
+      server.handleClient();
+      delay(100);
     }
 
-    minuteDiff = 0;
-    hourDiff = 0;
 
   }
 
-  delay(10000);
+
 
 }
