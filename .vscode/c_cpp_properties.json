@@ -19,14 +19,14 @@
             "includePath": [
                 "C:\\Users\\Henne\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.1\\tools\\sdk\\include",
                 "C:\\Users\\Henne\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.1\\tools\\sdk\\lwip2\\include",
-                "C:\\Users\\Henne\\AppData\\Local\\Temp\\arduino\\sketches\\7478888B55379BB8B1AA2AB88BC61EA4\\core",
+                "C:\\Users\\Henne\\Documents\\GitHub\\ArduinoOutput\\core",
                 "C:\\Users\\Henne\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.1\\cores\\esp8266",
                 "C:\\Users\\Henne\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.1\\variants\\d1_mini",
-                "C:\\Users\\Henne\\Documents\\Arduino\\libraries\\WiFiManager",
                 "C:\\Users\\Henne\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.1\\libraries\\ESP8266WiFi\\src",
+                "C:\\Users\\Henne\\Documents\\Arduino\\libraries\\NTPClient",
+                "C:\\Users\\Henne\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.1\\libraries\\EEPROM",
                 "C:\\Users\\Henne\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.1\\libraries\\ESP8266WebServer\\src",
-                "C:\\Users\\Henne\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.1\\libraries\\DNSServer\\src",
-                "C:\\Users\\Henne\\Documents\\Arduino\\libraries\\NTPClient"
+                "C:\\Users\\Henne\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.1\\libraries\\DNSServer\\src"
             ],
             "forcedInclude": [
                 "C:\\Users\\Henne\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.1.1\\cores\\esp8266\\Arduino.h"

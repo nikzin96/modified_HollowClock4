@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Holow Clock 4</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <!DOCTYPE html>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <style>
+        .button {
+            height: 70px;
+            width: 100px;
+        }
+        .row {
+            text-align:center
+        }
+    </style>
+    <body>
+        <div class="row">
+            <div class="cell">
+                <h2>Settings</h2>
+            </div>
+            <div>
+                <form action="/api/settings" method="post">
+                    <label for="flipRotation"> Flip Rotation</label>
+                    <input type="checkbox" id="flipRotation" name="flipRotation" value="1" checked><br>
+                    if your motor rotate to the opposite direction<br>
+                    <br>
+                    <label for="STEPS_PER_ROTATION">STEPS_PER_ROTATION:</label>
+                    <input type="text" id="STEPS_PER_ROTATION" name="STEPS_PER_ROTATION" value="sad"><br>
+                    adjusted steps for a full turn of minute rotor<br>
+                    <br>
+                    <label for="delaytime">delaytime:</label>
+                    <input type="text" id="delaytime" name="delaytime" value="sad" ><br>
+                    wait for a single step of stepper<br>
+                    <br>
+                    <label for="MY_TZ">time zone:</label>
+                    <input type="text" id="MY_TZ" name="MY_TZ" value="sad"><br>
+                    just set the right string for your time zone: <br>
+                    https://werner.rothschopf.net/202011_arduino_esp8266_ntp_en.htm<br>
+                    <br>
+                    <label for="MY_NTP_SERVER">NTP_SERVER:</label>
+                    <input type="text" id="MY_NTP_SERVER" name="MY_NTP_SERVER" value="sad"><br><br>
+
+                    <div style="color: red" >WARNING: wait until the Clock is not Moving</div>  <br>
+
+                    <input type="submit" value="Save">
+                </form>
+            </div>    
+        </div>
+    </body>
+</html>
