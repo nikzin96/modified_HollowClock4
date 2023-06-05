@@ -332,7 +332,7 @@ void initWifi() {
     setupmode = true;
 
 
-    IPAddress apIP(10, 10, 10, 10);
+    IPAddress apIP(10, 10, 10, 1);
     WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
 
     dnsServer.start(53, "*", WiFi.softAPIP());
