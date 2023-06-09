@@ -12,15 +12,13 @@
  *
  * After that it updates the time every 10 seconds from the server.
  *
- * If there is no internet connection the clock will just run like the original version, until it can reconnect to WiFi. Then it will set itself again to the correct time.
- *
  * Powerconsumption is about 50mA on average (including WiFi communication and motor running every minute)
- *
- * To connect to WiFi just add your WiFi Credentials below.
- *
  *
  * Have fun with this version of the Hollow Clock 4!
  *
+ * after installingThe ESP8266 Starts a Wifi Called HollowClock4 where you can Configure everything
+ * if the Website of the Clock Dosent Open Automaticly Please Visit 10.10.10.10 in your browser 
+ * 
  */
 
 #include <ESP8266WiFi.h>
