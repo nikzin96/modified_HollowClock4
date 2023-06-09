@@ -70,7 +70,6 @@ String readString(int address) {
   int i;
   for (i = 0; EEPROM.read(address + i) != '\0'; i++) {
     charBuf[i] = EEPROM.read(address + i);
-    EEPROM.commit();
   }
   charBuf[i] = '\0';
   string = charBuf;
@@ -130,6 +129,7 @@ void EEPROM_init() {
       EEPROM.write(i, 0);
       yield();
     }
+    EEPROM.commit();
 
     saveString(0, "HC4");
 
