@@ -348,12 +348,24 @@ void initWifi() {
 }
 
 void movetoStart() {
+  Serial.print(currHour);
+  Serial.print(":");
+  Serial.println(currMinute);
+  int to12Hour = 24 - currHour;
+  int to12minute = 60 - currMinute ;
+
   rotate(-20); // for approach run
   rotate(20); // approach run without heavy load
-  rotateFast((STEPS_PER_ROTATION * hourDiff));
-  rotateFast(((minuteDiff * STEPS_PER_ROTATION) / 60));
+  rotateFast((STEPS_PER_ROTATION * to12Hour));
+  rotateFast(((minuteDiff * to12minute) / 60));
+
   hourDiff = 0;
   minuteDiff = 0;
+
+  currHour = 12;
+  currMinute = 0;
+
+  setupmode = true;
 }
 
 
