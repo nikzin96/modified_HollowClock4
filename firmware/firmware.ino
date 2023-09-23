@@ -115,6 +115,7 @@ String MY_NTP_SERVER;
 int delaytime;
 int port[4];
 bool setupmode = false;
+bool NoWiFi = false;
 
 void EEPROM_init() {
   if (isHC4()) { //  check if EPROM is From Hollow Clock 4
@@ -312,8 +313,25 @@ bool testWifi() {
   return false;
 }
 
+void activateAP() {
+  IPAddress apIP(10, 10, 10, 1);
+  WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+
+  dnsServer.start(53, "*", WiFi.softAPIP());
+
+  WiFi.softAP("HollowClock4");
+  Serial.println("AP IP address: ");
+  Serial.println(WiFi.softAPIP());
+}
+
 void initWifi() {
 
+  if (ssid == "NoWiFi" || password == "NoWiFi") {
+    NoWiFi = true;
+    activateAP();
+    Serial.println("No WiFi Mode Activated");
+    return;
+  }
   WiFi.begin(ssid, password);
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -330,15 +348,8 @@ void initWifi() {
     WiFi.disconnect();
     setupmode = true;
 
+    activateAP();
 
-    IPAddress apIP(10, 10, 10, 1);
-    WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-
-    dnsServer.start(53, "*", WiFi.softAPIP());
-
-    WiFi.softAP("HollowClock4");
-    Serial.println("AP IP address: ");
-    Serial.println(WiFi.softAPIP());
     Serial.println("Please connect to AP and set WiFi credentials");
   }
 
@@ -363,6 +374,7 @@ void setup() {
 
   restServerRouting();
   server.begin();
+
 
   if (setupmode == false) {
 
@@ -460,14 +472,15 @@ void wifi() {
     <body>
         <div class="row">
             <div class="cell">
-                <h2> Wifi Settings</h2>
+                <h2>Wifi Settings</h2>
             </div>
             <div>
+                <H3 style="color: red" >If You dont Have Wifi set SSID and Password to NoWiFi</H3>  <br>
                 <form action="/api/wifi" method="post">
                     <label for="ssid">SSID:</label>
-                    <input type="text" id="ssid" name="ssid"><br><br>
+                    <input type="text" id="ssid" name="ssid" value="NoWiFi"><br><br>
                     <label for="password">Password:</label>
-                    <input type="text" id="password" name="password"><br><br>
+                    <input type="text" id="password" name="password" value="NoWiFi"><br><br>
                     <input type="submit" value="Save">
                 </form>
             </div>    
@@ -606,9 +619,7 @@ void loop() {
     dnsServer.processNextRequest();
     return;
   }
-
-
-  if (setupmode == false) {
+  else {
     // the clock will check if there is a time difference
     updateTime();
     skip = true;
