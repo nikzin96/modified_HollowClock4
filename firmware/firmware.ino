@@ -347,28 +347,6 @@ void initWifi() {
 
 }
 
-void movetoStart() {
-  Serial.print(currHour);
-  Serial.print(":");
-  Serial.println(currMinute);
-  int to12Hour = 24 - currHour;
-  int to12minute = 60 - currMinute ;
-
-  rotate(-20); // for approach run
-  rotate(20); // approach run without heavy load
-  rotateFast((STEPS_PER_ROTATION * to12Hour));
-  rotateFast(((minuteDiff * to12minute) / 60));
-
-  hourDiff = 0;
-  minuteDiff = 0;
-
-  currHour = 12;
-  currMinute = 0;
-
-  setupmode = true;
-}
-
-
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -451,7 +429,6 @@ void rootPage() {
             </div>
             <button class="button"; onclick="window.location.href = '/wifi';">Wifi Settings</button><br><br>
             <button class="button"; onclick="window.location.href = '/settings';">Settings</button><br><br>
-            <button class="button"; onclick="window.location.href = '/movetostart';">Move Clock To 12 a Clock (To start)</button>
 
 </html>
   )";
@@ -613,19 +590,10 @@ void apisettings() {
 }
 
 
-
-void movetoStartWeb() {
-  server.sendHeader("Location", String("/"), true);
-  server.send(302, "text/plain", "");
-
-  movetoStart();
-}
-
 void restServerRouting() {
   server.on(F("/"), HTTP_GET, rootPage);
   server.on(F("/wifi"), HTTP_GET, wifi);
   server.on(F("/settings"), HTTP_GET, settings);
-  server.on(F("/movetostart"), HTTP_GET, movetoStartWeb);
 
   server.on(F("/api/settings"), HTTP_POST, apisettings);
   server.on(F("/api/wifi"), HTTP_POST, apiWifi);
