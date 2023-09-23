@@ -605,10 +605,7 @@ void loop() {
   if (setupmode == true) {
     dnsServer.processNextRequest();
     return;
-  }
-
-
-  if (setupmode == false) {
+  } else {
     // the clock will check if there is a time difference
     updateTime();
     skip = true;
