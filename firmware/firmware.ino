@@ -641,6 +641,9 @@ void loop() {
 
 
       if (minuteDiff >= 0) {  //  this is used to make sure the clock does not go backwards, since its not really working backwards
+        Serial.print(Hour);
+        Serial.print(":");
+        Serial.println(Minute);
         rotate(-20); // for approach run
         rotate(20); // approach run without heavy load
         rotate(((minuteDiff * STEPS_PER_ROTATION) / 60));
