@@ -17,8 +17,8 @@
  * Have fun with this version of the Hollow Clock 4!
  *
  * after installingThe ESP8266 Starts a Wifi Called HollowClock4 where you can Configure everything
- * if the Website of the Clock Dosent Open Automaticly Please Visit 10.10.10.10 in your browser 
- * 
+ * if the Website of the Clock Dosent Open Automaticly Please Visit 10.10.10.10 in your browser
+ *
  */
 
 #include <ESP8266WiFi.h>
@@ -212,9 +212,8 @@ void setTimezone(String timezone) {
 
 
 // Variables to save date and time and other needed parameters
-int Year,Minute, Hour, currHour, currMinute, hourDiff, minuteDiff, stepsToGo;
+int Year, Minute, Hour, currHour, currMinute, hourDiff, minuteDiff, stepsToGo;
 
-bool skip = true;
 bool ntpError = false;
 
 
@@ -274,38 +273,42 @@ void updateTime() {
 
 }
 
-void getTimeDiff() {
+void movetocurrtime(bool fastmode) {
   updateTime();
 
-  if (Year < 2000){
+  if (Year < 2000) {
     Serial.println("NTP Server not reachable!!");
     ntpError = true;
     return;
   }
 
-  if (currHour != Hour) {
-    if (Hour == 12 || Hour == 24) {
-      currHour = Hour;
-      hourDiff = 0;
+  if (Hour != currHour || Minute != currMinute) {
+
+    if (Hour > 12) {
+      Hour -= 12;
+    }
+
+    hourDiff = Hour - currHour;
+    minuteDiff = Minute - currMinute;
+
+    if ( hourDiff < 0) {
+      hourDiff += 12;
+    }
+
+    if (fastmode == true) {
+      rotateFast((STEPS_PER_ROTATION * hourDiff));
+      rotateFast(((minuteDiff * STEPS_PER_ROTATION) / 60));
     }
     else {
-      if (Hour > 12) {
-        hourDiff = Hour - 12;
-        currHour = Hour;
-      }
-      else {
-        currHour = Hour;
-        hourDiff = Hour;
-      }
-
+      rotate((STEPS_PER_ROTATION * hourDiff));
+      rotate(((minuteDiff * STEPS_PER_ROTATION) / 60));
     }
 
-  }
-
-  if (currMinute != Minute) {
-    minuteDiff = Minute;
+    currHour = Hour;
     currMinute = Minute;
   }
+
+
 
 }
 
@@ -395,25 +398,7 @@ void setup() {
     pinMode(port[2], OUTPUT);
     pinMode(port[3], OUTPUT);
 
-
-    getTimeDiff();  //  when first starting up the clock expects that it is set to 12 o`clock and will set itself to the current time from there
-
-    if (ntpError == true) {
-      Serial.println("NTP Server not reachable!!");
-      return;
-    }
-
-    //if (hourDiff > 12) {
-    //  hourDiff = 12 - hourDiff;
-    //}
-
-    rotate(-20); // for approach run
-    rotate(20); // approach run without heavy load
-    rotateFast((STEPS_PER_ROTATION * hourDiff));
-    rotateFast(((minuteDiff * STEPS_PER_ROTATION) / 60));
-
-    hourDiff = 0;
-    minuteDiff = 0;
+    movetocurrtime(true);
 
 
 
@@ -617,76 +602,26 @@ void restServerRouting() {
   server.onNotFound(wifi);
 }
 
+
+
 void loop() {
   server.handleClient();
   if (setupmode == true) {
     dnsServer.processNextRequest();
     return;
-  } else if (ntpError == true) {
+  }
+  else if (ntpError == true) {
     Serial.println("NTP Server Was not reachable!! Restart Clock to Retry");
     delay(100);
     return;
-  }  else {
-    // the clock will check if there is a time difference
-    updateTime();
-    skip = true;
-
-    if (currMinute != 59 && currHour != Hour) { //  some conversion of the time to fit the 12h clock
-      int newCurrHour;
-      if (Hour > 12) {
-        Hour = Hour - 12;
-      }
-      newCurrHour = currHour;
-      if (currHour > 12) {
-        newCurrHour = currHour - 12;
-      }
-      if (Hour > newCurrHour) {
-        hourDiff == Hour - newCurrHour;
-      }
-      else if (newCurrHour > Hour) {
-        hourDiff = 12 - (newCurrHour - Hour);
-      }
-    }
-
-    if (currMinute != Minute) {
-      if (Minute < currMinute) {
-        minuteDiff = 60 - currMinute + Minute;
-      }
-      else {
-        minuteDiff = Minute - currMinute;
-        // currMinute = Minute;
-      }
-
-      currMinute = Minute;
-      currHour = Hour;
-
-
-      if (minuteDiff >= 0) {  //  this is used to make sure the clock does not go backwards, since its not really working backwards
-        Serial.print(Hour);
-        Serial.print(":");
-        Serial.println(Minute);
-        rotate(-20); // for approach run
-        rotate(20); // approach run without heavy load
-        rotate(((minuteDiff * STEPS_PER_ROTATION) / 60));
-      }
-      if (hourDiff >= 0) {
-        rotate((STEPS_PER_ROTATION * hourDiff));
-      }
-
-      minuteDiff = 0;
-      hourDiff = 0;
-
-    }
-
-
-    for (int i = 0; i < 10; i++) {
-      server.handleClient();
-      delay(100);
-    }
-
-
+  }
+  else {
+    movetocurrtime(false);
   }
 
-
+  for (int i = 0; i < 10; i++) {
+    server.handleClient();
+    delay(100);
+  }
 
 }
