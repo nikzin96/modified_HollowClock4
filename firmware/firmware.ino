@@ -212,9 +212,10 @@ void setTimezone(String timezone) {
 
 
 // Variables to save date and time and other needed parameters
-int Minute, Hour, currHour, currMinute, hourDiff, minuteDiff, stepsToGo;
+int Year,Minute, Hour, currHour, currMinute, hourDiff, minuteDiff, stepsToGo;
 
 bool skip = true;
+bool ntpError = false;
 
 
 void rotate(int step) { // original function from shiura
@@ -269,11 +270,18 @@ void updateTime() {
 
   Hour = tm.tm_hour;
   Minute = tm.tm_min;
+  Year = tm.tm_year + 1900;
 
 }
 
 void getTimeDiff() {
   updateTime();
+
+  if (Year < 2000){
+    Serial.println("NTP Server not reachable!!");
+    ntpError = true;
+    return;
+  }
 
   if (currHour != Hour) {
     if (Hour == 12 || Hour == 24) {
@@ -389,6 +397,15 @@ void setup() {
 
 
     getTimeDiff();  //  when first starting up the clock expects that it is set to 12 o`clock and will set itself to the current time from there
+
+    if (ntpError == true) {
+      Serial.println("NTP Server not reachable!!");
+      return;
+    }
+
+    //if (hourDiff > 12) {
+    //  hourDiff = 12 - hourDiff;
+    //}
 
     rotate(-20); // for approach run
     rotate(20); // approach run without heavy load
@@ -605,7 +622,10 @@ void loop() {
   if (setupmode == true) {
     dnsServer.processNextRequest();
     return;
-  } else {
+  } else if (ntpError == true) {
+    Serial.println("NTP Server Was not reachable!! Restart Clock to Retry");
+    return;
+  }  else {
     // the clock will check if there is a time difference
     updateTime();
     skip = true;
