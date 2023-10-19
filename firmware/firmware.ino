@@ -624,6 +624,7 @@ void loop() {
     return;
   } else if (ntpError == true) {
     Serial.println("NTP Server Was not reachable!! Restart Clock to Retry");
+    delay(100);
     return;
   }  else {
     // the clock will check if there is a time difference
