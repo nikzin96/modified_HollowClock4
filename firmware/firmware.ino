@@ -611,8 +611,15 @@ void loop() {
     return;
   }
   else if (ntpError == true) {
-    Serial.println("NTP Server Was not reachable!! Restart Clock to Retry");
+    for (int i = 0; i < 600; i++) {
+    Serial.print("NTP Server Was not reachable!! Retrying in ");
+    Serial.print((600 - i)/10);
+    Serial.println(" Seconds");
+
+    server.handleClient();
     delay(100);
+    }
+    ntpError = false;
     return;
   }
   else {
