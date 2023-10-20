@@ -284,6 +284,11 @@ void movetocurrtime(bool fastmode) {
 
   if (Hour != currHour || Minute != currMinute) {
 
+    Serial.print("Current time: ");
+    Serial.print(Hour);
+    Serial.print(":");
+    Serial.println(Minute);
+
     if (Hour > 12) {
       Hour -= 12;
     }
