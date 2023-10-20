@@ -301,12 +301,10 @@ void movetocurrtime(bool fastmode) {
     }
 
     if (fastmode == true) {
-      rotateFast((STEPS_PER_ROTATION * hourDiff));
-      rotateFast(((minuteDiff * STEPS_PER_ROTATION) / 60));
+      rotateFast((STEPS_PER_ROTATION * hourDiff)+((minuteDiff * STEPS_PER_ROTATION) / 60));
     }
     else {
-      rotate((STEPS_PER_ROTATION * hourDiff));
-      rotate(((minuteDiff * STEPS_PER_ROTATION) / 60));
+      rotate((STEPS_PER_ROTATION * hourDiff)+((minuteDiff * STEPS_PER_ROTATION) / 60));
     }
 
     currHour = Hour;
