@@ -22,7 +22,6 @@
  */
 
 #include <ESP8266WiFi.h>
-#include <NTPClient.h>    //  https://github.com/arduino-libraries/NTPClient
 #include <WiFiClient.h>
 #include <WiFiUdp.h>
 #include <time.h>
@@ -199,16 +198,10 @@ int seq[8][4] = {
   {  LOW, HIGH,  LOW,  LOW}
 };
 
-// Define NTP Client to get time
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
-
-
 void setTimezone(String timezone) {
   setenv("TZ", timezone.c_str(), 1);  //  Now adjust the time zone
   tzset();
 }
-
 
 
 // Variables to save date and time and other needed parameters
@@ -264,8 +257,7 @@ void rotateFast(int step) { // this is just to rotate to the current time faster
 
 void updateTime() {
 
-  time(&now);                       // read the current time
-  localtime_r(&now, &tm);           // update the structure tm with the current time
+  getLocalTime(&tm);
 
   Hour = tm.tm_hour;
   Minute = tm.tm_min;
@@ -310,8 +302,6 @@ void movetocurrtime(bool fastmode) {
     currHour = Hour;
     currMinute = Minute;
   }
-
-
 
 }
 
@@ -394,16 +384,12 @@ void setup() {
     currHour = lasthour;
     currMinute = lastminute;
 
-
-
     pinMode(port[0], OUTPUT);
     pinMode(port[1], OUTPUT);
     pinMode(port[2], OUTPUT);
     pinMode(port[3], OUTPUT);
 
     movetocurrtime(true);
-
-
 
   }
 
