@@ -203,7 +203,6 @@ void setTimezone(String timezone) {
   tzset();
 }
 
-
 // Variables to save date and time and other needed parameters
 int Year, Minute, Hour, currHour, currMinute, hourDiff, minuteDiff, stepsToGo;
 
