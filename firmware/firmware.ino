@@ -326,6 +326,8 @@ void initWifi() {
     Serial.println("WiFi connected");
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
+    WiFi.setAutoReconnect(true);
+    WiFi.persistent(true);
     setupmode = false;
   }
   else {
