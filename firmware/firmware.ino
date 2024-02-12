@@ -32,8 +32,10 @@
 
 
 DNSServer dnsServer;
-ESP8266WebServer server(80);
+//ESP8266WebServer server(80);
+ESP8266WebServer *server = new ESP8266WebServer(80);
 
+//*****************************************************************************************************************************************************************************EEPPROM FUNCTIONS*************************************
 
 //save int in EEPROM
 void saveInt(int address, int value) {
@@ -114,6 +116,7 @@ String MY_NTP_SERVER;
 int delaytime;
 int port[4];
 bool setupmode = false;
+String newHostname;
 
 void EEPROM_init() {
   if (isHC4()) { //  check if EPROM is From Hollow Clock 4
@@ -138,7 +141,7 @@ void EEPROM_init() {
     // save default values
     saveString(10, "SSID"); //  WiFi SSID max 32 chars
     saveString(50, "PASSWORD"); //  WiFi PASSWORD max 63 chars
-
+    saveString(115, "HollowClock4"); // HostName
     saveBool(150, false); //  Flip rotation
     saveInt(151, 30720); //  STEPS_PER_ROTATION  
     saveInt(153, 2); //  delaytime 
@@ -149,6 +152,7 @@ void EEPROM_init() {
   Serial.println(readString(0));
   Serial.println(readString(10));
   Serial.println(readString(50));
+  Serial.println(readString(115));
   Serial.println(readBool(150));
   Serial.println(readInt(151));
   Serial.println(readInt(153));
@@ -158,6 +162,7 @@ void EEPROM_init() {
   // read values from EEPROM
   ssid = readString(10);
   password = readString(50);
+  newHostname = readString(115);
   flipRotation = readBool(150);
   STEPS_PER_ROTATION = readInt(151);
   delaytime = readInt(153);
@@ -181,7 +186,7 @@ void EEPROM_init() {
 
 }
 
-
+//*****************************************************************************************************************************************************************************CLOCK FUNCTIONS*************************************
 
 time_t now;                         // this is the epoch
 tm tm;                              // the structure tm holds time information in a more convient way
@@ -222,7 +227,7 @@ void rotate(int step) { // original function from shiura
       digitalWrite(port[i], seq[phase][i]);
     }
     delay(dt);
-    server.handleClient();
+    server->handleClient();
     if (dt > delaytime) dt--;
   }
   // power cut
@@ -244,7 +249,7 @@ void rotateFast(int step) { // this is just to rotate to the current time faster
       digitalWrite(port[i], seq[phase][i]);
     }
     delay(dt);
-    server.handleClient();
+    server->handleClient();
     if (dt > delaytime) dt--;
   }
   // power cut
@@ -303,7 +308,7 @@ void movetocurrtime(bool fastmode) {
   }
 
 }
-
+//*****************************************************************************************************************************************************************************WIFI FUNCTIONS*************************************
 //Ticker update;
 bool testWifi() {
   for (int i = 0; i < 40; i++) {
@@ -316,7 +321,7 @@ bool testWifi() {
 }
 
 void initWifi() {
-
+  
   WiFi.begin(ssid, password);
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -324,79 +329,48 @@ void initWifi() {
 
   if (testWifi()) {
     Serial.println("WiFi connected");
-    Serial.println("IP address: ");
+    Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
     WiFi.setAutoReconnect(true);
     WiFi.persistent(true);
+    WiFi.hostname(newHostname.c_str());
     setupmode = false;
+    //Get Current Hostname
+    Serial.print("New hostname: ");
+    Serial.println(WiFi.hostname().c_str());
+    Serial.print("IP: ");
+    Serial.println(WiFi.localIP());
+    delete server;
+    server = new ESP8266WebServer(WiFi.localIP(),80);
   }
   else {
     Serial.println("WiFi connect failed");
     WiFi.disconnect();
     setupmode = true;
-
+    
 
     IPAddress apIP(10, 10, 10, 1);
     WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-
     dnsServer.start(53, "*", WiFi.softAPIP());
-
+    WiFi.hostname(newHostname.c_str());
     WiFi.softAP("HollowClock4");
-    Serial.println("AP IP address: ");
+    Serial.print("AP IP address: ");
     Serial.println(WiFi.softAPIP());
-    Serial.println("Please connect to AP and set WiFi credentials");
+    Serial.println("Please connect to AP through ip or hostname and set WiFi credentials");
+    Serial.print("New hostname:");
+    Serial.println(WiFi.hostname().c_str());
+    Serial.print("IP: ");
+    Serial.println(WiFi.localIP());
   }
-
 
   configTime(MY_TZ.c_str(), MY_NTP_SERVER.c_str());
 
 }
 
-void setup() {
-  Serial.begin(115200);
-  delay(1000);
-
-  EEPROM.begin(512);
-
-  Serial.println("Hollow Clock 4");
-  Serial.println(isHC4());
-
-  EEPROM_init();
-  yield();
-
-  initWifi();
-
-  restServerRouting();
-  server.begin();
-
-  if (setupmode == false) {
-
-    //at startup the clock expects it´s set to 12 o`clock
-
-    int lasthour = readInt(5); //  this is the last saved hour
-    int lastminute = readInt(7); //  this is the last saved minute
-    if (lasthour != 0) {
-      saveInt(5, 0);
-    }
-    if (lastminute != 0) {
-      saveInt(7, 0);
-    }
-
-    currHour = lasthour;
-    currMinute = lastminute;
-
-    pinMode(port[0], OUTPUT);
-    pinMode(port[1], OUTPUT);
-    pinMode(port[2], OUTPUT);
-    pinMode(port[3], OUTPUT);
-
-    movetocurrtime(true);
-
-  }
-
-}
+//*****************************************************************************************************************************************************************************REST SERVER FUNCTIONS***********************************
 
 void rootPage() {
+  String StrHost = readString(115);
   String data = R"(
     <!DOCTYPE html>
 <html lang="en">
@@ -417,19 +391,26 @@ void rootPage() {
     <body>
         <div class="row">
             <div class="cell">
-                <h2>Settings</h2>
+              <h2>)" + StrHost + R"( Settings</h2>
             </div>
             <button class="button"; onclick="window.location.href = '/wifi';">Wifi Settings</button><br><br>
-            <button class="button"; onclick="window.location.href = '/settings';">Settings</button><br><br>
+            <button class="button"; onclick="window.location.href = '/settings';">Settings</button><br><br><br><br>
+            <form action="/" method="post" data-confirm="Are you sure you want to confirm all changes? settings will be persisted to memory">
+              <input type="submit" value="Confirm Options"><br><br>
+            </form>
+            <form action="/reset" method="post" onsubmit='return confirm('Are you sure you want to reset the Clock? all settings will return to factory state')'">
+              <input type="submit" value="Factory Reset"><br><br>
+            </form>
 
 </html>
   )";
 
 
-  server.send(200, "text/html", data);
+  server->send(200, "text/html", data);
 }
 
 void wifi() {
+  String strMySSID = readString(10);
   String data = R"(
   <!DOCTYPE html>
 <html lang="en">
@@ -457,10 +438,10 @@ void wifi() {
             <div>
                 <form action="/api/wifi" method="post">
                     <label for="ssid">SSID:</label>
-                    <input type="text" id="ssid" name="ssid"><br><br>
+                    <input type="text" id="ssid" name="ssid"value=")" + strMySSID + R"(" ><br><br>
                     <label for="password">Password:</label>
                     <input type="text" id="password" name="password"><br><br>
-                    <input type="submit" value="Save">
+                    <input type="submit" value="Accept">
                 </form>
             </div>    
         </div>
@@ -469,10 +450,11 @@ void wifi() {
 )";
 
 
-  server.send(200, "text/html", data);
+  server->send(200, "text/html", data);
 }
 
 void settings() {
+  String strNewHostname = readString(115);
   bool flip = readBool(150);
   STEPS_PER_ROTATION = readInt(151);
   delaytime = readInt(153);
@@ -509,6 +491,9 @@ void settings() {
             </div>
             <div>
                 <form action="/api/settings" method="post">
+                    <label for="hostName"> Host Name</label>
+                    <input type="text" id="hostName" name="hostName" value=")" + strNewHostname + R"("><br>
+                    <br>
                     <label for="flipRotation"> Flip Rotation</label>
                     <input type="checkbox" id="flipRotation" name="flipRotation" value="1" )" + strflipRotation + R"( ><br>
                     if your motor rotate to the opposite direction<br>
@@ -538,64 +523,77 @@ void settings() {
     </body>
 </html>
   )";
-  server.send(200, "text/html", data);
+  server->send(200, "text/html", data);
 }
 
 void apiWifi() {
-  String new_ssid = server.arg("ssid");
-  String new_password = server.arg("password");
+  String new_ssid = server->arg("ssid");
+  String new_password = server->arg("password");
 
   saveString(10, new_ssid);
   saveString(50, new_password);
 
 
-  server.sendHeader("Location", String("/"), true);
-  server.send(302, "text/plain", "");
+  server->sendHeader("Location", String("/"), true);
+  server->send(302, "text/plain", "");
 
   saveInt(5, currHour);
   saveInt(7, currMinute);
 
-  ESP.restart();
+  //ESP.restart();
 }
 
 void apisettings() {
-  bool flipRotation = (server.arg("flipRotation") == "1");
-  int STEPS_PER_ROTATION = server.arg("STEPS_PER_ROTATION").toInt();;
-  int delaytime = server.arg("delaytime").toInt();;
-  String MY_TZ = server.arg("MY_TZ");
-  String MY_NTP_SERVER = server.arg("MY_NTP_SERVER");
+  String hName= server->arg("hostName");
+  bool flipRotation = (server->arg("flipRotation") == "1");
+  int STEPS_PER_ROTATION = server->arg("STEPS_PER_ROTATION").toInt();;
+  int delaytime = server->arg("delaytime").toInt();;
+  String MY_TZ = server->arg("MY_TZ");
+  String MY_NTP_SERVER = server->arg("MY_NTP_SERVER");
 
-
+  saveString(115, hName);
   saveBool(150, flipRotation);
   saveInt(151, STEPS_PER_ROTATION);
   saveInt(153, delaytime);
   saveString(200, MY_TZ);
   saveString(250, MY_NTP_SERVER);
 
-  server.sendHeader("Location", String("/"), true);
-  server.send(302, "text/plain", "");
+  server->sendHeader("Location", String("/"), true);
+  server->send(302, "text/plain", "");
 
   saveInt(5, currHour);
   saveInt(7, currMinute);
 
+  //ESP.restart();
+}
+
+void apisave() {
+  ESP.restart();
+}
+void apiFactoryReset() {
+   // clear EEPROM
+  for (int i = 0; i < 512; i++) {
+    EEPROM.write(i, 0);
+    yield();
+  }
+  EEPROM.commit();
   ESP.restart();
 }
 
-
 void restServerRouting() {
-  server.on(F("/"), HTTP_GET, rootPage);
-  server.on(F("/wifi"), HTTP_GET, wifi);
-  server.on(F("/settings"), HTTP_GET, settings);
+  server->on(F("/"), HTTP_GET, rootPage);
+  server->on(F("/wifi"), HTTP_GET, wifi);
+  server->on(F("/settings"), HTTP_GET, settings);
 
-  server.on(F("/api/settings"), HTTP_POST, apisettings);
-  server.on(F("/api/wifi"), HTTP_POST, apiWifi);
-  server.onNotFound(wifi);
+  server->on(F("/api/settings"), HTTP_POST, apisettings);
+  server->on(F("/api/wifi"), HTTP_POST, apiWifi);
+  server->on(F("/"), HTTP_POST, apisave);
+  server->on(F("/reset"), HTTP_POST, apiFactoryReset);
+  server->onNotFound(wifi);
 }
-
-
-
+//*****************************************************************************************************************************************************************************MAIN FUNCTIONS*************************************
 void loop() {
-  server.handleClient();
+  server->handleClient();
   if (setupmode == true) {
     dnsServer.processNextRequest();
     return;
@@ -606,7 +604,7 @@ void loop() {
     Serial.print((600 - i)/10);
     Serial.println(" Seconds");
 
-    server.handleClient();
+    server->handleClient();
     delay(100);
     }
     ntpError = false;
@@ -617,8 +615,53 @@ void loop() {
   }
 
   for (int i = 0; i < 10; i++) {
-    server.handleClient();
+    server->handleClient();
     delay(100);
+  }
+
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  
+  EEPROM.begin(512);
+
+  Serial.println("Hollow Clock 4");
+  Serial.println(isHC4());
+
+  //initializes/reads EEPROM 
+  EEPROM_init();
+  yield();
+  //defines wifi if init or creates wifi in case of further setup
+  initWifi();
+  
+  restServerRouting();
+  server->begin(80);
+
+  if (setupmode == false) {
+
+    //at startup the clock expects it´s set to 12 o`clock
+
+    int lasthour = readInt(5); //  this is the last saved hour
+    int lastminute = readInt(7); //  this is the last saved minute
+    if (lasthour != 0) {
+      saveInt(5, 0);
+    }
+    if (lastminute != 0) {
+      saveInt(7, 0);
+    }
+
+    currHour = lasthour;
+    currMinute = lastminute;
+
+    pinMode(port[0], OUTPUT);
+    pinMode(port[1], OUTPUT);
+    pinMode(port[2], OUTPUT);
+    pinMode(port[3], OUTPUT);
+
+    movetocurrtime(true);
+
   }
 
 }
